@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/user"
 	"strings"
+	"syscall"
 )
 
 func main() {
@@ -22,6 +24,9 @@ func main() {
 
 		case "A":
 			listAll(checkArg(arg1), true)
+
+		case "l":
+			listLongFormat(checkArg(arg1))
 
 		default:
 			defaultLs(arg1)
@@ -92,6 +97,37 @@ func listAll(dir string, almost bool) {
 		for cnt := 0; cnt < len(files); cnt++ {
 			fmt.Print(files[cnt].Name())
 			fmt.Print("     ")
+		}
+	} else {
+		log.Fatal(err)
+	}
+	fmt.Println(" ")
+}
+
+func listLongFormat(dir string) {
+	files, err := os.ReadDir(dir)
+
+	if err == nil {
+		for cnt := 0; cnt < len(files); cnt++ {
+			filename, isHidden := strings.CutPrefix(files[cnt].Name(), ".")
+			if !isHidden {
+				fileinfo, _ := files[cnt].Info()
+				fmt.Print(fileinfo.Mode().Perm())
+				fmt.Print("     ")
+				stat := fileinfo.Sys().(*syscall.Stat_t)
+				userElement, _ := user.LookupId(fmt.Sprint(stat.Uid))
+				groupElement, _ := user.LookupGroupId(fmt.Sprint(stat.Gid))
+				fmt.Print(userElement.Username)
+				fmt.Print("     ")
+				fmt.Print(groupElement.Name)
+				fmt.Print("     ")
+				fmt.Print(fileinfo.Size())
+				fmt.Print("     ")
+				fmt.Print(fileinfo.ModTime().Format("02.01 15:04"))
+				fmt.Print("     ")
+				fmt.Print(filename)
+				fmt.Println("m")
+			}
 		}
 	} else {
 		log.Fatal(err)
