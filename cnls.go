@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"strings"
 	"syscall"
+	"text/tabwriter"
 )
 
 func main() {
@@ -32,45 +33,18 @@ func main() {
 			defaultLs(arg1)
 		}
 	}
-
-	/*
-		cmdArgs := os.Args
-		var dir string
-		if len(cmdArgs) != 2 {
-			dir = "."
-		} else {
-			dir = cmdArgs[1]
-		}
-		files, err := os.ReadDir(dir)
-		if err != nil {
-			log.Fatal(err)
-		}
-		for file := 0; file < len(files); file++ {
-			var filename string = files[file].Name()
-			filename, startWithDot := strings.CutPrefix(filename, ".")
-			fileInfo, fileInfoErr := files[file].Info()
-			if !startWithDot {
-				if fileInfoErr == nil {
-					fmt.Print(fileInfo.Mode().Perm())
-					fmt.Print("   ")
-					fmt.Println(filename)
-				}
-			}
-		}
-		fmt.Println(" ")
-	*/
 }
 
 func defaultLs(dir string) {
 	files, err := os.ReadDir(dir)
+	sortedFiles := sort(files)
 	if err == nil {
-		for cnt := 0; cnt < len(files); cnt++ {
-			filename, isHidden := strings.CutPrefix(files[cnt].Name(), ".")
+		for cnt := 0; cnt < len(sortedFiles); cnt++ {
+			filename, isHidden := strings.CutPrefix(sortedFiles[cnt].Name(), ".")
 			if !isHidden {
 				fmt.Print(filename)
 				fmt.Print("     ")
 			}
-
 		}
 	} else {
 		log.Fatal(err)
@@ -88,14 +62,15 @@ func checkArg(arg1 string) string {
 
 func listAll(dir string, almost bool) {
 	files, err := os.ReadDir(dir)
+	sortedFiles := sort(files)
 
 	if !almost {
 		fmt.Print(".     ..     ")
 	}
 
 	if err == nil {
-		for cnt := 0; cnt < len(files); cnt++ {
-			fmt.Print(files[cnt].Name())
+		for cnt := 0; cnt < len(sortedFiles); cnt++ {
+			fmt.Print(sortedFiles[cnt].Name())
 			fmt.Print("     ")
 		}
 	} else {
@@ -106,29 +81,27 @@ func listAll(dir string, almost bool) {
 
 func listLongFormat(dir string) {
 	files, err := os.ReadDir(dir)
+	sortedFiles := sort(files)
+	table := tabwriter.NewWriter(os.Stdout, 0, 5, 5, ' ', 0)
 
 	if err == nil {
-		for cnt := 0; cnt < len(files); cnt++ {
-			filename, isHidden := strings.CutPrefix(files[cnt].Name(), ".")
+		fmt.Println(" ")
+		for cnt := 0; cnt < len(sortedFiles); cnt++ {
+			filename, isHidden := strings.CutPrefix(sortedFiles[cnt].Name(), ".")
 			if !isHidden {
-				fileinfo, _ := files[cnt].Info()
-				fmt.Print(fileinfo.Mode().Perm())
-				fmt.Print("     ")
+				fileinfo, _ := sortedFiles[cnt].Info()
+				permission := fileinfo.Mode().Perm()
 				stat := fileinfo.Sys().(*syscall.Stat_t)
 				userElement, _ := user.LookupId(fmt.Sprint(stat.Uid))
+				userName := userElement.Username
 				groupElement, _ := user.LookupGroupId(fmt.Sprint(stat.Gid))
-				fmt.Print(userElement.Username)
-				fmt.Print("     ")
-				fmt.Print(groupElement.Name)
-				fmt.Print("     ")
-				fmt.Print(fileinfo.Size())
-				fmt.Print("     ")
-				fmt.Print(fileinfo.ModTime().Format("02.01 15:04"))
-				fmt.Print("     ")
-				fmt.Print(filename)
-				fmt.Println("m")
+				groupName := groupElement.Name
+				modtime := fileinfo.ModTime().Format("02.01 15:04")
+				size := fileinfo.Size()
+				fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%d\t%s\n", permission, userName, groupName, modtime, size, filename)
 			}
 		}
+		table.Flush()
 	} else {
 		log.Fatal(err)
 	}
