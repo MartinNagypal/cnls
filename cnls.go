@@ -82,15 +82,23 @@ func listAll(dir string, almost bool) {
 func listLongFormat(dir string) {
 	files, err := os.ReadDir(dir)
 	sortedFiles := sort(files)
-	table := tabwriter.NewWriter(os.Stdout, 0, 5, 5, ' ', 0)
+	table := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 
 	if err == nil {
 		fmt.Println(" ")
+		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "perm", "d/f", "owner", "group", "last modified", "size", "filename")
 		for cnt := 0; cnt < len(sortedFiles); cnt++ {
 			filename, isHidden := strings.CutPrefix(sortedFiles[cnt].Name(), ".")
 			if !isHidden {
 				fileinfo, _ := sortedFiles[cnt].Info()
 				permission := fileinfo.Mode().Perm()
+				isDirectory := fileinfo.Mode().IsDir()
+				var isDirectoryString string
+				if isDirectory {
+					isDirectoryString = "d"
+				} else {
+					isDirectoryString = "f"
+				}
 				stat := fileinfo.Sys().(*syscall.Stat_t)
 				userElement, _ := user.LookupId(fmt.Sprint(stat.Uid))
 				userName := userElement.Username
@@ -98,7 +106,7 @@ func listLongFormat(dir string) {
 				groupName := groupElement.Name
 				modtime := fileinfo.ModTime().Format("02.01 15:04")
 				size := fileinfo.Size()
-				fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%d\t%s\n", permission, userName, groupName, modtime, size, filename)
+				fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%d\t%s\n", permission, isDirectoryString, userName, groupName, modtime, size, filename)
 			}
 		}
 		table.Flush()
